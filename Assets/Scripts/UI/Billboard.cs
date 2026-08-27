@@ -1,21 +1,30 @@
 using UnityEngine;
 
+/// <summary>
+/// Rotates this object each frame so its front (+Z) faces the active camera.
+/// Useful for world-space labels / health bars above characters.
+/// </summary>
 public class Billboard : MonoBehaviour
 {
-    private Camera cam;
+    [Tooltip("Keep the object upright (ignore the camera's pitch/roll).")]
+    [SerializeField] bool lockVertical = true;
 
-    void Start()
-    {
-        cam = Camera.main;
-    }
+    Camera cam;
 
     void LateUpdate()
     {
-        if (cam == null) return;
-        // Face the camera, but keep it upright (no tilt)
+        // Re-acquire if missing (scene load, camera spawned after this object, etc.).
+        if (cam == null)
+        {
+            cam = Camera.main;
+            if (cam == null) return;
+        }
+
+        // Vector pointing from the camera to this object => object's +Z faces the camera.
         Vector3 direction = transform.position - cam.transform.position;
-        direction.y = 0; // remove this line if you want full free-facing billboards
-        if (direction.sqrMagnitude > 0.001f)
+        if (lockVertical) direction.y = 0f;
+
+        if (direction.sqrMagnitude > 0.0001f)
             transform.rotation = Quaternion.LookRotation(direction);
     }
 }
