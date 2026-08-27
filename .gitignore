@@ -112,3 +112,5 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+"Assets/Cartoon_Texture_Pack/" 
+"Assets/Cartoon_Texture_Pack.meta" 
