@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.herocharacter.herocombat": "https://github.com/mdj128/hero-combat-controller.git",
     "com.unity.ai.assistant": "2.18.0-pre.2",
     "com.unity.ai.inference": "2.6.1",
     "com.unity.ai.navigation": "2.0.14",
