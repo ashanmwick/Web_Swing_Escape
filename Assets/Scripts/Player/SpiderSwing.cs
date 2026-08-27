@@ -30,16 +30,26 @@ public class SpiderSwing : MonoBehaviour
     [SerializeField] Camera aimCamera;
 
     [Header("Anchor placement (no aiming)")]
-    [SerializeField] float anchorHeight = 12f;
-    [SerializeField] float anchorForwardOffset = 6f;
+    [Tooltip("How far above the player the web anchor is placed. Keep it high enough that the anchor point stays off-screen.")]
+    [SerializeField] float anchorHeight = 80f;
+    [SerializeField] float anchorForwardOffset = 10f;
     [SerializeField] float minRopeLength = 3f;
-    [SerializeField] float maxRopeLength = 22f;
+    [SerializeField] float maxRopeLength = 120f;
     [Tooltip("Optional: if something on these layers is between the player and the virtual anchor, attach to it instead.")]
     [SerializeField] LayerMask anchorMask = ~0;
 
+    [Header("Launch (the instant the web attaches)")]
+    [Tooltip("Instant speed added along the player's forward direction when the web deploys.")]
+    [SerializeField] float launchForwardSpeed = 7f;
+    [Tooltip("Instant speed added straight up when the web deploys.")]
+    [SerializeField] float launchUpSpeed = 4f;
+
     [Header("Swing feel")]
-    [Tooltip("Tangential speed added on attach so a standing start still swings.")]
-    [SerializeField] float initialSwingSpeed = 6f;
+    [Tooltip("If > 0, the rope reels in at this speed (m/s) until it reaches the reel-in target length.")]
+    [SerializeField] float reelInSpeed = 4f;
+    [Tooltip("Reel-in stops at this fraction of the initial rope length.")]
+    [Range(0.1f, 1f)]
+    [SerializeField] float reelInToFraction = 0.6f;
     [Tooltip("Fraction of speed bled off per second while swinging. 0 = no energy loss.")]
     [SerializeField] float swingDamping = 0.05f;
     [Tooltip("Extra speed added along the current velocity the instant the web snaps.")]
@@ -61,7 +71,9 @@ public class SpiderSwing : MonoBehaviour
     InputAction jumpAction;
     bool swinging;
     Vector3 anchor;
+    Vector3 swingForwardDir;
     float ropeLength;
+    float reelInTargetLength;
     float swingTime;
     float lastTapTime = -10f;
     float reattachReadyTime;
@@ -136,6 +148,12 @@ public class SpiderSwing : MonoBehaviour
 
         Vector3 dir = toAnchor / dist; // player -> anchor
 
+        // Reel the rope in so the player keeps being drawn toward the anchor.
+        if (reelInSpeed > 0f && ropeLength > reelInTargetLength)
+        {
+            ropeLength = Mathf.MoveTowards(ropeLength, reelInTargetLength, reelInSpeed * Time.fixedDeltaTime);
+        }
+
         if (dist > ropeLength)
         {
             rb.position = anchor - dir * ropeLength;      // clamp onto the sphere
@@ -150,8 +168,11 @@ public class SpiderSwing : MonoBehaviour
 
         float angleFromDown = Vector3.Angle(Vector3.down, (rb.position - anchor).normalized);
         bool rising = Vel.y > 0.1f;
+        bool movingForward = Vector3.Dot(new Vector3(Vel.x, 0f, Vel.z), swingForwardDir) > 0.1f;
 
-        if (swingTime >= minSwingTime && angleFromDown >= breakAngle && rising) { BreakWeb(); return; }
+        // Break only on the forward up-swing, so the release always throws the
+        // player forward and up – never back the way they came.
+        if (swingTime >= minSwingTime && angleFromDown >= breakAngle && rising && movingForward) { BreakWeb(); return; }
         if (swingTime >= maxSwingTime) { BreakWeb(); return; }
         if (groundMask.value != 0 &&
             Physics.Raycast(rb.position, Vector3.down, groundBreakDistance, groundMask, QueryTriggerInteraction.Ignore))
@@ -184,15 +205,19 @@ public class SpiderSwing : MonoBehaviour
         if (dist < minRopeLength || dist > maxRopeLength) return;
 
         anchor = target;
+        swingForwardDir = fwd;
         ropeLength = dist;
+        reelInTargetLength = Mathf.Max(minRopeLength, dist * reelInToFraction);
         swingTime = 0f;
         swinging = true;
 
         SetHeroMovement(false); // hand physics control to this script
 
-        Vector3 ropeDir = (rb.position - anchor).normalized;
-        Vector3 swingDir = Vector3.ProjectOnPlane(fwd, ropeDir).normalized;
-        Vel += swingDir * initialSwingSpeed;
+        // Realistic launch: the web yanks the player a bit forward and a bit up,
+        // then gravity turns that into a swing. No pull backward toward the anchor.
+        Vector3 horizVel = new Vector3(Vel.x, 0f, Vel.z);
+        float forwardCarry = Mathf.Max(0f, Vector3.Dot(horizVel, fwd)); // keep only forward run speed
+        Vel = fwd * (forwardCarry + launchForwardSpeed) + Vector3.up * Mathf.Max(Vel.y, 0f) + Vector3.up * launchUpSpeed;
 
         if (web != null)
         {
@@ -207,6 +232,14 @@ public class SpiderSwing : MonoBehaviour
         swinging = false;
 
         if (web != null) web.enabled = false;
+
+        // Guarantee the release never carries the player backward, whatever path
+        // triggered the break (angle, timeout or ground).
+        Vector3 backward = Vector3.Project(new Vector3(Vel.x, 0f, Vel.z), swingForwardDir);
+        if (Vector3.Dot(backward, swingForwardDir) < 0f)
+        {
+            Vel -= backward; // strip the backward horizontal component
+        }
 
         if (releaseBoost > 0f && Vel.sqrMagnitude > 0.01f)
         {
