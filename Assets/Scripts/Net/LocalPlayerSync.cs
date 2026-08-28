@@ -22,6 +22,7 @@ namespace WebSwingEscape.Net
         [SerializeField] bool sendCoins = true;
 
         float _nextSendTime;
+        bool _lastSwinging;
 
         void Awake()
         {
@@ -32,10 +33,15 @@ namespace WebSwingEscape.Net
         {
             var net = NetworkClient.Instance;
             if (net == null || !net.IsConnected) return;
-            if (Time.time < _nextSendTime) return;
-            _nextSendTime = Time.time + 1f / Mathf.Max(1f, sendRate);
 
             bool swinging = web != null && web.enabled && web.positionCount >= 2;
+
+            // Steady cadence, but send right away when the swing state changes so
+            // the web line / animation on other clients flips without a send-interval delay.
+            bool due = Time.time >= _nextSendTime || swinging != _lastSwinging;
+            if (!due) return;
+            _nextSendTime = Time.time + 1f / Mathf.Max(1f, sendRate);
+            _lastSwinging = swinging;
             Vector3 anchor = swinging ? web.GetPosition(web.positionCount - 1) : Vector3.zero;
 
             int coins = 0;
