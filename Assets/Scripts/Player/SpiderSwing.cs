@@ -65,6 +65,10 @@ public class SpiderSwing : MonoBehaviour
     [SerializeField] float anchorForwardPerSpeed = 0.55f;
     [SerializeField] float minRopeLength = 6f;
     [SerializeField] float maxRopeLength = 140f;
+    [Tooltip("The web won't fire unless the anchor is at least this many metres ABOVE the player. In fixed-height " +
+             "mode this is the real ceiling: get within this vertical gap of the skyline and the shot is refused, " +
+             "so the player must drop a little before they can swing again.")]
+    [SerializeField] float minVerticalClearance = 4f;
     [Tooltip("If solid geometry on these layers is between the player and the virtual anchor, attach to it instead.")]
     [SerializeField] LayerMask anchorMask = ~0;
 
@@ -317,12 +321,17 @@ public class SpiderSwing : MonoBehaviour
             // XZ column – a virtual skyline. As the player climbs, the rope gets
             // shorter and the arc tighter, so there is a hard, natural ceiling and
             // chained swings can't gain altitude forever.
-            Vector3 probeStart = new Vector3(flatTarget.x, transform.position.y + groundProbeDistance * 0.5f, flatTarget.z);
+            // Probe from just above the player's feet straight down for the FLOOR
+            // under the anchor column (starting high would catch overhead roofs).
+            Vector3 probeStart = new Vector3(flatTarget.x, transform.position.y + 2f, flatTarget.z);
             float groundY = Physics.Raycast(probeStart, Vector3.down, out RaycastHit gh, groundProbeDistance,
                                             groundProbeMask, QueryTriggerInteraction.Ignore)
                 ? gh.point.y
                 : transform.position.y; // no ground found: fall back to player height
             target = new Vector3(flatTarget.x, groundY + anchorHeightAboveGround, flatTarget.z);
+
+            // NOTE: the line-of-sight snap below is skipped in this mode so the
+            // fixed skyline height is actually honoured.
         }
         else
         {
@@ -333,13 +342,17 @@ public class SpiderSwing : MonoBehaviour
             target = flatTarget + Vector3.up * height;
         }
 
-        if (Physics.Raycast(origin, (target - origin).normalized, out RaycastHit hit,
+        // Player-relative mode only: if solid geometry is between the hand and the
+        // virtual anchor, attach to that instead. Fixed-height mode keeps its
+        // computed skyline point untouched.
+        if (!anchorAtFixedHeight &&
+            Physics.Raycast(origin, (target - origin).normalized, out RaycastHit hit,
                             Vector3.Distance(origin, target), anchorMask, QueryTriggerInteraction.Ignore))
         {
             target = hit.point;
         }
 
-        if (target.y <= transform.position.y + 1f) return; // anchor must be above the player
+        if (target.y - transform.position.y < minVerticalClearance) return; // must be clearly above the player
 
         float dist = Vector3.Distance(rb.position, target);
         if (dist < minRopeLength || dist > maxRopeLength) return;
