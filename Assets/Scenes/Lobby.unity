@@ -2895,6 +2895,12 @@ MonoBehaviour:
   handTransform: {fileID: 318014068}
   web: {fileID: 1601810268}
   aimCamera: {fileID: 0}
+  anchorAtFixedHeight: 1
+  anchorHeightAboveGround: 22
+  groundProbeDistance: 400
+  groundProbeMask:
+    serializedVersion: 2
+    m_Bits: 16
   anchorHeight: 55
   anchorForwardOffset: 9
   anchorForwardPerSpeed: 0.55
@@ -2909,14 +2915,16 @@ MonoBehaviour:
   airLaunchForwardSpeed: 4
   swingGravityMultiplier: 2.2
   autoPumpAccel: 9
+  autoPumpTargetSpeed: 20
   inputPumpAccel: 20
   reelInSpeed: 6
   reelInToFraction: 0.7
   swingDamping: 0.02
-  maxSwingSpeed: 45
-  releaseBoost: 6
+  maxSwingSpeed: 34
+  releaseBoost: 3
+  maxReleaseUpSpeed: 9
   autoRelease: 1
-  autoReleaseAngle: 62
+  autoReleaseAngle: 50
   minSwingTime: 0.2
   maxSwingTime: 5
   groundBreakDistance: 1.4
@@ -7835,7 +7843,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 4508100960728128899, guid: c8f11a9afb856c54e8e4e6af4fedb960, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5372543309481362822, guid: c8f11a9afb856c54e8e4e6af4fedb960, type: 3}
       propertyPath: m_Pivot.x

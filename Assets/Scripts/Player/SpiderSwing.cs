@@ -47,7 +47,17 @@ public class SpiderSwing : MonoBehaviour
     [SerializeField] Camera aimCamera;
 
     [Header("Anchor placement (no aiming)")]
-    [Tooltip("Base height of the auto-anchor above the player.")]
+    [Tooltip("ON: every anchor sits at a fixed height above the ground below it (a virtual skyline), so the rope " +
+             "shortens as the player rises and there is a natural ceiling. OFF: anchor is placed a fixed distance " +
+             "above the player.")]
+    [SerializeField] bool anchorAtFixedHeight = true;
+    [Tooltip("Fixed-height mode: metres above the ground that the anchor is placed.")]
+    [SerializeField] float anchorHeightAboveGround = 38f;
+    [Tooltip("How far to search up/down for the ground beneath the anchor point.")]
+    [SerializeField] float groundProbeDistance = 400f;
+    [Tooltip("What counts as 'ground' for the fixed-height probe.")]
+    [SerializeField] LayerMask groundProbeMask = ~0;
+    [Tooltip("Player-relative mode: distance the anchor is placed above the player.")]
     [SerializeField] float anchorHeight = 55f;
     [Tooltip("Base forward distance of the anchor ahead of the player.")]
     [SerializeField] float anchorForwardOffset = 9f;
@@ -75,6 +85,9 @@ public class SpiderSwing : MonoBehaviour
     [SerializeField] float swingGravityMultiplier = 2.2f;
     [Tooltip("Always-on tangential acceleration along the swing direction (the 'automatic pump').")]
     [SerializeField] float autoPumpAccel = 9f;
+    [Tooltip("The auto-pump only adds energy while the along-arc speed is below this. Above it the swing coasts, " +
+             "so chained swings settle at a steady height instead of climbing forever.")]
+    [SerializeField] float autoPumpTargetSpeed = 20f;
     [Tooltip("Extra tangential acceleration from the Move input (lean into / out of the swing).")]
     [SerializeField] float inputPumpAccel = 20f;
     [Tooltip("Rope reels in at this speed (m/s) until it reaches the reel-in fraction. 0 = fixed length.")]
@@ -84,14 +97,17 @@ public class SpiderSwing : MonoBehaviour
     [Tooltip("Fraction of speed bled off per second while swinging. Keep small.")]
     [SerializeField] float swingDamping = 0.02f;
     [Tooltip("Hard cap on swing speed (m/s).")]
-    [SerializeField] float maxSwingSpeed = 45f;
+    [SerializeField] float maxSwingSpeed = 34f;
 
     [Header("Release")]
-    [Tooltip("Extra speed added along the current velocity the instant the web lets go.")]
-    [SerializeField] float releaseBoost = 6f;
+    [Tooltip("Extra speed added along the horizontal release direction the instant the web lets go.")]
+    [SerializeField] float releaseBoost = 3f;
+    [Tooltip("Upward speed is clamped to this on release, so a chain of swings can't fling the player ever higher.")]
+    [SerializeField] float maxReleaseUpSpeed = 9f;
     [SerializeField] bool autoRelease = true;
-    [Tooltip("Degrees from straight-down, measured at the anchor, for the automatic release on the forward up-swing.")]
-    [SerializeField] float autoReleaseAngle = 62f;
+    [Tooltip("Degrees from straight-down, measured at the anchor, for the automatic release on the forward up-swing. " +
+             "Lower = release earlier = more forward and less upward.")]
+    [SerializeField] float autoReleaseAngle = 50f;
     [SerializeField] float minSwingTime = 0.2f;
     [SerializeField] float maxSwingTime = 5f;
     [Tooltip("Release early if the ground is within this distance below the player.")]
@@ -215,7 +231,17 @@ public class SpiderSwing : MonoBehaviour
         if (arcForward.sqrMagnitude > 0.0001f)
         {
             arcForward.Normalize();
-            Vel += arcForward * (autoPumpAccel * dt);
+
+            // The auto-pump is a governor, not a rocket: it only tops the swing up
+            // toward a cruise speed. Once the along-arc speed reaches the target it
+            // stops adding energy, so chained swings converge to a stable height
+            // instead of climbing every cycle.
+            float alongArc = Vector3.Dot(Vel, arcForward);
+            if (alongArc < autoPumpTargetSpeed)
+            {
+                float falloff = 1f - Mathf.Clamp01(alongArc / autoPumpTargetSpeed);
+                Vel += arcForward * (autoPumpAccel * falloff * dt);
+            }
 
             if (moveAction != null && inputPumpAccel > 0f)
             {
@@ -282,7 +308,30 @@ public class SpiderSwing : MonoBehaviour
 
         float horizSpeed = new Vector3(Vel.x, 0f, Vel.z).magnitude;
         float forwardOffset = anchorForwardOffset + horizSpeed * anchorForwardPerSpeed;
-        Vector3 target = origin + fwd * forwardOffset + Vector3.up * anchorHeight;
+        Vector3 flatTarget = origin + fwd * forwardOffset; // anchor's XZ column
+
+        Vector3 target;
+        if (anchorAtFixedHeight)
+        {
+            // Anchor sits at a constant height above whatever ground is below its
+            // XZ column – a virtual skyline. As the player climbs, the rope gets
+            // shorter and the arc tighter, so there is a hard, natural ceiling and
+            // chained swings can't gain altitude forever.
+            Vector3 probeStart = new Vector3(flatTarget.x, transform.position.y + groundProbeDistance * 0.5f, flatTarget.z);
+            float groundY = Physics.Raycast(probeStart, Vector3.down, out RaycastHit gh, groundProbeDistance,
+                                            groundProbeMask, QueryTriggerInteraction.Ignore)
+                ? gh.point.y
+                : transform.position.y; // no ground found: fall back to player height
+            target = new Vector3(flatTarget.x, groundY + anchorHeightAboveGround, flatTarget.z);
+        }
+        else
+        {
+            // Player-relative: place the anchor a set distance above the player,
+            // pulled lower while rising so it doesn't chase them upward.
+            float height = anchorHeight;
+            if (Vel.y > 0f) height = Mathf.Max(anchorHeight * 0.45f, anchorHeight - Vel.y * 2f);
+            target = flatTarget + Vector3.up * height;
+        }
 
         if (Physics.Raycast(origin, (target - origin).normalized, out RaycastHit hit,
                             Vector3.Distance(origin, target), anchorMask, QueryTriggerInteraction.Ignore))
@@ -317,7 +366,10 @@ public class SpiderSwing : MonoBehaviour
         }
         else
         {
-            Vel = fwd * (forwardCarry + airLaunchForwardSpeed) + Vector3.up * Mathf.Max(Vel.y, 0f);
+            // Carry existing momentum, but don't let a mid-air re-fire bank extra
+            // altitude on top of an already-rising jump.
+            float upCarry = Mathf.Clamp(Vel.y, -maxSwingSpeed, maxReleaseUpSpeed);
+            Vel = fwd * (forwardCarry + airLaunchForwardSpeed) + Vector3.up * upCarry;
         }
 
         everSwung = true;
@@ -347,13 +399,23 @@ public class SpiderSwing : MonoBehaviour
             Vel -= backward; // strip the backward horizontal component
         }
 
-        if (releaseBoost > 0f && Vel.sqrMagnitude > 0.01f)
+        // Boost only the horizontal part, so the fling always translates into
+        // forward reach rather than extra height.
+        Vector3 flat = new Vector3(Vel.x, 0f, Vel.z);
+        if (releaseBoost > 0f && flat.sqrMagnitude > 0.01f)
         {
-            Vel += Vel.normalized * releaseBoost; // fling on release
+            Vel += flat.normalized * releaseBoost;
         }
 
         float cap = maxSwingSpeed * 1.15f;
         if (Vel.sqrMagnitude > cap * cap) Vel = Vel.normalized * cap;
+
+        // Cap upward launch so each swing-release can't stack altitude onto the
+        // last one. Downward speed is left alone (you can still dive).
+        if (Vel.y > maxReleaseUpSpeed)
+        {
+            Vel = new Vector3(Vel.x, maxReleaseUpSpeed, Vel.z);
+        }
 
         SetHeroMovement(true); // hero resumes: air control now, landing later
         reattachReadyTime = Time.time + reattachCooldown;
