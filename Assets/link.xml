@@ -1,0 +1,16 @@
+<!--
+  Preserve types the IL2CPP managed linker can't see through.
+  Managed Stripping Level is High for WebGL (ProjectSettings: managedStrippingLevel.WebGL = 3).
+
+  - WebSwingEscape.Net.* : the hand-written Colyseus schema mirrors
+    (Assets/Scripts/Net/Schema/*) are populated by the SDK via reflection.
+  - ColyseusSDK        : the SDK's schema decoder / serializer resolve
+    members reflectively at runtime.
+-->
+<linker>
+  <assembly fullname="Assembly-CSharp">
+    <namespace fullname="WebSwingEscape.Net" preserve="all" />
+  </assembly>
+  <assembly fullname="ColyseusSDK" preserve="all" />
+  <assembly fullname="colyseus.nativewebsocket" preserve="all" />
+</linker>
