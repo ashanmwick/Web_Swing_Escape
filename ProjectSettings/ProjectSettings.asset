@@ -193,9 +193,9 @@ PlayerSettings:
   CreateWallpaper: 0
   androidSplitApplicationBinary: 0
   keepLoadedShadersAlive: 0
-  StripUnusedMeshComponents: 0
+  StripUnusedMeshComponents: 1
   strictShaderVariantMatching: 0
-  VertexChannelCompressionMask: 4054
+  VertexChannelCompressionMask: 4095
   iPhoneSdkVersion: 988
   iOSSimulatorArchitecture: 0
   iOSTargetOSVersionString: 15.0
@@ -806,7 +806,7 @@ PlayerSettings:
   blurSplashScreenBackground: 1
   spritePackerPolicy: 
   webGLMemorySize: 32
-  webGLExceptionSupport: 1
+  webGLExceptionSupport: 0
   webGLNameFilesAsHashes: 0
   webGLShowDiagnostics: 0
   webGLDataCaching: 1
@@ -841,7 +841,8 @@ PlayerSettings:
   scriptingBackend:
     Android: 1
   il2cppCompilerConfiguration: {}
-  il2cppCodeGeneration: {}
+  il2cppCodeGeneration:
+    WebGL: 1
   il2cppLTOMode: {}
   il2cppStacktraceInformation: {}
   managedStrippingLevel: {}
