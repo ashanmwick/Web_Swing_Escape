@@ -1,0 +1,34 @@
+# Netlify config for the Unity WebGL client.
+# The Colyseus server is hosted separately (see NetworkClient.endpoint).
+
+[build]
+  # No CLI build for Unity — deploy the pre-built WebGL output in ./build
+  publish = "build"
+  command = ""
+
+# Unity WebGL build uses Brotli compression (*.br). Netlify serves these as
+# plain files unless we set Content-Encoding + the real Content-Type.
+
+[[headers]]
+  for = "/Build/*.wasm.br"
+  [headers.values]
+    Content-Encoding = "br"
+    Content-Type = "application/wasm"
+
+[[headers]]
+  for = "/Build/*.js.br"
+  [headers.values]
+    Content-Encoding = "br"
+    Content-Type = "application/javascript"
+
+[[headers]]
+  for = "/Build/*.data.br"
+  [headers.values]
+    Content-Encoding = "br"
+    Content-Type = "application/octet-stream"
+
+[[headers]]
+  for = "/Build/*.symbols.json.br"
+  [headers.values]
+    Content-Encoding = "br"
+    Content-Type = "application/octet-stream"

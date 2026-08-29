@@ -4125,7 +4125,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15dc2517d2049b74ea81c2257e7b6d97, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WebSwingEscape.Net.NetSceneController
-  serverEndpoint: ws://localhost:2567
+  serverEndpoint: wss://unity-game-server-5q96.onrender.com
   zone: Lobby
   playerName: 
   localPlayerTag: Player

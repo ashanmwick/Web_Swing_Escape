@@ -17,7 +17,7 @@ namespace WebSwingEscape.Net
     {
         [Header("Server")]
         [Tooltip("ws://host:port  (wss://host for TLS). Copied onto the shared NetworkClient.")]
-        public string serverEndpoint = "ws://localhost:2567";
+        public string serverEndpoint = "wss://unity-game-server-5q96.onrender.com";
 
         [Tooltip("Zone name for this scene. Players in different zones never see each other.")]
         public string zone = "Lobby";

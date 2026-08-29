@@ -40,7 +40,7 @@ namespace WebSwingEscape.Net
         public static NetworkClient Instance { get; private set; }
 
         [Tooltip("ws://host:port for local dev. Use wss://host for TLS (required for a WebGL build served over https).")]
-        public string endpoint = "ws://localhost:2567";
+        public string endpoint = "wss://unity-game-server-5q96.onrender.com";
 
         [Tooltip("Shown to other players. Left empty -> a random 'Swinger-1234' name.")]
         public string playerName = "";
@@ -260,7 +260,10 @@ namespace WebSwingEscape.Net
                 SetPhase(NetPhase.Offline);
                 LeftZone?.Invoke(code);
             });
-            _room.OnError += (code, msg) => Debug.LogError($"[NetworkClient] room error {code}: {msg}");
+            // A room error is a server/connectivity condition, not a code fault. Keep it a
+            // warning so a stale session tearing down (e.g. code 524 "seat reservation
+            // expired") during an Editor build can't abort BuildPlayer.
+            _room.OnError += (code, msg) => Debug.LogWarning($"[NetworkClient] room error {code}: {msg}");
             _room.OnMessage<double>("pong", sent =>
                 LastRoundTripMs = Mathf.RoundToInt((float)(NowMs() - sent)));
             _room.OnMessage<ChatMessage>("chat", m =>

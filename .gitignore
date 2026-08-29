@@ -114,3 +114,6 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ss]ceneDependencyCache*
 "Assets/Cartoon_Texture_Pack/" 
 "Assets/Cartoon_Texture_Pack.meta" 
+
+# Local Netlify folder
+.netlify
