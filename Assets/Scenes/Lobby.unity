@@ -2611,11 +2611,11 @@ MonoBehaviour:
     easeInLook: 1
     lookStartDelay: 0.15
     lookRampDuration: 0.35
-    thirdPersonDistance: 3
+    thirdPersonDistance: 8
     maxCameraDistance: 8
-    minThirdPersonDistance: 1
+    minThirdPersonDistance: 8
     thirdPersonVerticalOffset: 0
-    zoomSensitivity: 0.5
+    zoomSensitivity: 0
     zoomSmoothing: 0
     thirdPersonPositionSmoothing: 0
     thirdPersonPivotOffset: -0.5
