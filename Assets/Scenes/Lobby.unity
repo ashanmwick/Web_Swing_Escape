@@ -2895,28 +2895,36 @@ MonoBehaviour:
   handTransform: {fileID: 318014068}
   web: {fileID: 1601810268}
   aimCamera: {fileID: 0}
-  anchorHeight: 80
-  anchorForwardOffset: 6
-  minRopeLength: 3
-  maxRopeLength: 120
+  anchorHeight: 55
+  anchorForwardOffset: 9
+  anchorForwardPerSpeed: 0.55
+  minRopeLength: 6
+  maxRopeLength: 140
   anchorMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  launchForwardSpeed: 7
-  launchUpSpeed: 4
-  reelInSpeed: 4
-  reelInToFraction: 0.6
-  swingDamping: 0.05
-  releaseBoost: 3
-  breakAngle: 55
-  minSwingTime: 0.25
-  maxSwingTime: 4
-  groundBreakDistance: 1.1
+  freshLaunchUpSpeed: 15
+  freshLaunchForwardSpeed: 12
+  freshSpeedThreshold: 4
+  airLaunchForwardSpeed: 4
+  swingGravityMultiplier: 2.2
+  autoPumpAccel: 9
+  inputPumpAccel: 20
+  reelInSpeed: 6
+  reelInToFraction: 0.7
+  swingDamping: 0.02
+  maxSwingSpeed: 45
+  releaseBoost: 6
+  autoRelease: 1
+  autoReleaseAngle: 62
+  minSwingTime: 0.2
+  maxSwingTime: 5
+  groundBreakDistance: 1.4
   groundMask:
     serializedVersion: 2
     m_Bits: 0
-  doubleTapWindow: 0.3
-  reattachCooldown: 0.2
+  doubleTapWindow: 0.28
+  reattachCooldown: 0.12
 --- !u!114 &839911195
 MonoBehaviour:
   m_ObjectHideFlags: 0
