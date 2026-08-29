@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using Colyseus;
@@ -23,6 +24,9 @@ namespace WebSwingEscape.Net
         public int coins;
     }
 
+    /// <summary>Where the connection currently is. Drives <see cref="NetConnectOverlay"/>.</summary>
+    public enum NetPhase { Offline, Connecting, Waking, Online, Failed }
+
     /// <summary>
     /// Owns the connection to the Colyseus server and turns its (background-thread)
     /// state callbacks into main-thread events + a snapshot dictionary the rest of
@@ -41,10 +45,31 @@ namespace WebSwingEscape.Net
         [Tooltip("Shown to other players. Left empty -> a random 'Swinger-1234' name.")]
         public string playerName = "";
 
+        // Free hosts (e.g. Render's free tier) spin the server down after ~15 min
+        // idle; the first join then waits 30-60s for it to boot. These knobs
+        // control how the client keeps retrying while that happens.
+        [Header("Cold-start handling")]
+        [Tooltip("Seconds to wait between join attempts while the server wakes up.")]
+        public float retryDelaySeconds = 4f;
+        [Tooltip("Abandon a single hung attempt after this many seconds and start another.")]
+        public float perAttemptTimeoutSeconds = 20f;
+        [Tooltip("Stop retrying and show the Retry prompt after this many seconds. 0 = never give up.")]
+        public float connectBudgetSeconds = 120f;
+        [Tooltip("Stop retrying after this many attempts. 0 = unlimited (within the time budget).")]
+        public int maxAttempts = 0;
+        [Tooltip("Auto-add the on-screen 'waking up server' overlay to this object.")]
+        public bool autoConnectOverlay = true;
+
         // ---- connection ----
         Client _client;
         Room<GameState> _room;
         string _zone;
+
+        // ---- cold-start retry loop ----
+        CancellationTokenSource _connectCts;
+        Vector3 _lastSpawnPos;
+        float _lastSpawnYaw;
+        float _connectStartTime;
 
         // ---- background -> main thread hand-off ----
         readonly object _lock = new object();
@@ -63,6 +88,16 @@ namespace WebSwingEscape.Net
         public string Zone => _zone;
         public int LastRoundTripMs { get; private set; }
 
+        /// <summary>Current connection phase. <see cref="PhaseChanged"/> fires on the main thread when it moves.</summary>
+        public NetPhase Phase { get; private set; } = NetPhase.Offline;
+        /// <summary>Which join attempt of the current <see cref="JoinZone"/> we are on (1-based).</summary>
+        public int ConnectAttempt { get; private set; }
+        /// <summary>Seconds spent in the current connect sequence (0 once Online / Offline).</summary>
+        public float ConnectElapsed =>
+            (Phase == NetPhase.Connecting || Phase == NetPhase.Waking)
+                ? Time.realtimeSinceStartup - _connectStartTime
+                : 0f;
+
         /// <summary>sessionId of a player that just appeared (fires for pre-existing players on join too).</summary>
         public event Action<string> PlayerJoined;
         /// <summary>sessionId of a player that just disappeared.</summary>
@@ -71,15 +106,17 @@ namespace WebSwingEscape.Net
         public event Action<string> JoinedZone;
         /// <summary>Raised on the main thread when the room connection ends (arg = close code).</summary>
         public event Action<int> LeftZone;
-        /// <summary>Raised on the main thread when a join / connection attempt fails.</summary>
+        /// <summary>Raised on the main thread when the client gives up retrying (moves to <see cref="NetPhase.Failed"/>).</summary>
         public event Action<string> ConnectionFailed;
+        /// <summary>Raised on the main thread whenever <see cref="Phase"/> changes.</summary>
+        public event Action<NetPhase> PhaseChanged;
 
         public static NetworkClient EnsureInstance()
         {
             if (Instance == null)
             {
                 var go = new GameObject("~NetworkClient");
-                Instance = go.AddComponent<NetworkClient>();
+                Instance = go.AddComponent<NetworkClient>();  // its Awake adds NetConnectOverlay
             }
             return Instance;
         }
@@ -93,6 +130,8 @@ namespace WebSwingEscape.Net
             }
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            if (autoConnectOverlay && GetComponent<NetConnectOverlay>() == null)
+                gameObject.AddComponent<NetConnectOverlay>();
             // Keep pumping the socket when the editor / player window loses focus,
             // so two instances on one machine stay in sync while you alt-tab.
             Application.runInBackground = true;
@@ -108,9 +147,27 @@ namespace WebSwingEscape.Net
         //  Join / leave
         // ------------------------------------------------------------------
 
-        public async void JoinZone(string zone, Vector3 spawnPos, float spawnYaw)
+        public void JoinZone(string zone, Vector3 spawnPos, float spawnYaw)
         {
-            await LeaveAsync();
+            _lastSpawnPos = spawnPos;
+            _lastSpawnYaw = spawnYaw;
+            _ = JoinZoneAsync(zone, spawnPos, spawnYaw);
+        }
+
+        /// <summary>Re-run the last <see cref="JoinZone"/> from the beginning (used by the Retry button).</summary>
+        public void RetryNow()
+        {
+            if (string.IsNullOrEmpty(_zone)) return;
+            _ = JoinZoneAsync(_zone, _lastSpawnPos, _lastSpawnYaw);
+        }
+
+        async Task JoinZoneAsync(string zone, Vector3 spawnPos, float spawnYaw)
+        {
+            await LeaveAsync();                         // also cancels any prior retry loop
+
+            _connectCts?.Dispose();
+            _connectCts = new CancellationTokenSource();
+            var ct = _connectCts.Token;
 
             _zone = zone;
             _client = new Client(endpoint);
@@ -127,24 +184,80 @@ namespace WebSwingEscape.Net
                 { "rotY", spawnYaw },
             };
 
-            try
+            _connectStartTime = Time.realtimeSinceStartup;
+            ConnectAttempt = 0;
+            SetPhase(NetPhase.Connecting);
+
+            while (!ct.IsCancellationRequested)
             {
-                _room = await _client.JoinOrCreate<GameState>("game", options);
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"[NetworkClient] join '{zone}' failed: {e.Message}");
-                _room = null;
-                ConnectionFailed?.Invoke(e.Message);
-                return;
+                ConnectAttempt++;
+                if (ConnectAttempt > 1) SetPhase(NetPhase.Waking);   // first retry -> "waking up" copy
+
+                try
+                {
+                    var joinTask = _client.JoinOrCreate<GameState>("game", options);
+                    var timeout = Task.Delay(
+                        TimeSpan.FromSeconds(Mathf.Max(5f, perAttemptTimeoutSeconds)), ct);
+                    var finished = await Task.WhenAny(joinTask, timeout);
+
+                    if (finished == joinTask)
+                    {
+                        _room = await joinTask;                       // may throw -> caught below
+                        WireRoom(zone, name);
+                        SetPhase(NetPhase.Online);
+                        return;
+                    }
+
+                    if (ct.IsCancellationRequested) break;            // superseded by a newer join / leave
+
+                    // Attempt hung past perAttemptTimeoutSeconds. Drop it if it ever lands.
+                    _ = joinTask.ContinueWith(t =>
+                    {
+                        if (t.Status == TaskStatus.RanToCompletion)
+                            try { t.Result.Leave(false); } catch { /* nothing to clean */ }
+                    }, TaskScheduler.Default);
+                    Debug.LogWarning($"[NetworkClient] join '{zone}' attempt {ConnectAttempt} timed out; server may be cold-starting.");
+                }
+                catch (OperationCanceledException) { break; }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[NetworkClient] join '{zone}' attempt {ConnectAttempt} failed: {e.Message}");
+                    _room = null;
+                }
+
+                if (ct.IsCancellationRequested) break;
+
+                bool outOfTime = connectBudgetSeconds > 0f
+                                 && Time.realtimeSinceStartup - _connectStartTime >= connectBudgetSeconds;
+                bool outOfAttempts = maxAttempts > 0 && ConnectAttempt >= maxAttempts;
+                if (outOfTime || outOfAttempts)
+                {
+                    SetPhase(NetPhase.Failed);
+                    ConnectionFailed?.Invoke($"server unreachable after {ConnectAttempt} attempt(s)");
+                    return;
+                }
+
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(Mathf.Max(0.5f, retryDelaySeconds)), ct);
+                }
+                catch (OperationCanceledException) { break; }
             }
 
+            // Loop exited via cancellation (scene change / new JoinZone / shutdown).
+            if (Phase == NetPhase.Connecting || Phase == NetPhase.Waking)
+                SetPhase(NetPhase.Offline);
+        }
+
+        void WireRoom(string zone, string name)
+        {
             _room.OnStateChange += OnStateChanged;          // background thread
             _room.OnLeave += code => Enqueue(() =>          // background thread -> queued
             {
                 Debug.Log($"[NetworkClient] left zone '{zone}' (code {code})");
                 _room = null;
                 ClearAll();
+                SetPhase(NetPhase.Offline);
                 LeftZone?.Invoke(code);
             });
             _room.OnError += (code, msg) => Debug.LogError($"[NetworkClient] room error {code}: {msg}");
@@ -157,8 +270,17 @@ namespace WebSwingEscape.Net
             JoinedZone?.Invoke(zone);
         }
 
+        void SetPhase(NetPhase p)
+        {
+            if (Phase == p) return;
+            Phase = p;
+            try { PhaseChanged?.Invoke(p); } catch (Exception e) { Debug.LogException(e); }
+        }
+
         public async Task LeaveAsync()
         {
+            _connectCts?.Cancel();                  // stop any in-flight retry loop
+
             var room = _room;
             _room = null;
             ClearAll();
@@ -166,6 +288,7 @@ namespace WebSwingEscape.Net
             {
                 try { await room.Leave(true); } catch { /* already gone */ }
             }
+            if (Phase != NetPhase.Failed) SetPhase(NetPhase.Offline);
         }
 
         // ------------------------------------------------------------------
