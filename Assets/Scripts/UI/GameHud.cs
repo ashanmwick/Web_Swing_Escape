@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using WebSwingEscape.Progression;
 
 /// <summary>
 /// Drives the top-of-screen HUD: Level badge, XP progress bar, Speed and
@@ -28,10 +29,94 @@ public class GameHud : MonoBehaviour
     [SerializeField] TMP_Text rebirthText;    // "Rebirth: +125%"
     [SerializeField] Slider progressBar;      // XP fill (Min 0, Max 1, non-interactable)
 
-    void OnEnable() => Refresh();
+    [Header("Live data source (optional — overrides the placeholders in Play mode)")]
+    [SerializeField] PlayerProgression progression;
+    [SerializeField] RebirthSystem rebirth;
+
+    bool _boundProgression;
+    bool _boundRebirth;
+
+    void OnEnable()
+    {
+        Bind();
+        Refresh();
+    }
+
+    void OnDisable() => Unbind();
 
     // Fired whenever a serialized field changes in the Inspector.
     void OnValidate() => Refresh();
+
+    // Subscribe to the progression systems so the HUD refreshes itself from real
+    // data at runtime. In edit mode ([ExecuteAlways]) it stays on the Inspector
+    // placeholder values.
+    void Bind()
+    {
+        if (!Application.isPlaying) return;
+
+        if (progression == null) progression = FindFirstObjectByType<PlayerProgression>();
+        if (rebirth == null) rebirth = FindFirstObjectByType<RebirthSystem>();
+
+        if (progression != null && !_boundProgression)
+        {
+            progression.OnSpeedChanged += HandleSpeedChanged;
+            progression.OnLevelUp += HandleLevelChanged;
+            progression.OnLevelChanged += HandleLevelChanged;
+            progression.OnCoinsChanged += HandleCoinsChanged;
+            _boundProgression = true;
+        }
+
+        if (rebirth != null && !_boundRebirth)
+        {
+            rebirth.OnRebirthMultiplierChanged += HandleMultiplierChanged;
+            rebirth.OnRebirth += HandleRebirth;
+            _boundRebirth = true;
+        }
+
+        PullFromSystems();
+    }
+
+    void Unbind()
+    {
+        if (progression != null && _boundProgression)
+        {
+            progression.OnSpeedChanged -= HandleSpeedChanged;
+            progression.OnLevelUp -= HandleLevelChanged;
+            progression.OnLevelChanged -= HandleLevelChanged;
+            progression.OnCoinsChanged -= HandleCoinsChanged;
+            _boundProgression = false;
+        }
+
+        if (rebirth != null && _boundRebirth)
+        {
+            rebirth.OnRebirthMultiplierChanged -= HandleMultiplierChanged;
+            rebirth.OnRebirth -= HandleRebirth;
+            _boundRebirth = false;
+        }
+    }
+
+    void HandleSpeedChanged(double _) => PullFromSystems();
+    void HandleCoinsChanged(double _) => PullFromSystems();
+    void HandleLevelChanged(int _) => PullFromSystems();
+    void HandleMultiplierChanged(double _) => PullFromSystems();
+    void HandleRebirth(int _) => PullFromSystems();
+
+    /// <summary>Copies live values off the progression systems into the label fields, then re-formats.</summary>
+    void PullFromSystems()
+    {
+        if (progression != null)
+        {
+            level = progression.Level;
+            currentXp = (float)progression.CurrentLevelXp;
+            xpForNextLevel = (float)progression.XpForNextLevel;
+            speed = (float)progression.Speed;
+        }
+
+        if (rebirth != null)
+            rebirthBonusPercent = (float)((rebirth.RebirthMultiplier - 1d) * 100d);
+
+        Refresh();
+    }
 
     /// <summary>Re-formats every label from the current stat values.</summary>
     public void Refresh()

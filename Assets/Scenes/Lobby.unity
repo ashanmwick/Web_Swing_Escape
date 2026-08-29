@@ -459,8 +459,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
-  m_Type: 1
+  m_Sprite: {fileID: 0}
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -755,6 +755,8 @@ GameObject:
   - component: {fileID: 734832996}
   - component: {fileID: 734832995}
   - component: {fileID: 734832994}
+  - component: {fileID: 734832998}
+  - component: {fileID: 734832997}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -786,9 +788,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 34d45db229e38114d82c636c8c7c6f5c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
-  coins: 0
-  speedMultiplier: 1
-  rebirthCount: 0
+  progression: {fileID: 734832998}
+  rebirth: {fileID: 734832997}
+  startingCoins: 5000
 --- !u!4 &734832996
 Transform:
   m_ObjectHideFlags: 0
@@ -804,6 +806,35 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &734832997
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 734832993}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da397ee5623dcde44930b2b48ee6ca75, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WebSwingEscape.Progression.RebirthSystem
+  tierData: {fileID: 11400000, guid: 6b8a3f04c514b8d4ea09c0569aade131, type: 2}
+  progression: {fileID: 734832998}
+--- !u!114 &734832998
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 734832993}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 949b7f974c02def40a08d7882cd4b8a1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WebSwingEscape.Progression.PlayerProgression
+  levelCurve: {fileID: 11400000, guid: 79b3955f26bfa1a4d81f2f7308960c8d, type: 2}
+  boostCosts: {fileID: 11400000, guid: 748841b839aec1a45ac387034a76424f, type: 2}
+  rebirthProviderSource: {fileID: 734832998}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -1186,7 +1217,7 @@ MonoBehaviour:
   movement:
     enableMovementControl: 1
     canJump: 1
-    canSprint: 1
+    canSprint: 0
     toggleSprint: 0
     faceCameraForward: 1
     standingHeight: 7.9146395
@@ -1485,6 +1516,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2bd4426a2cf3494188fd233da979ae0a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HoldToRotateCamera
+--- !u!114 &839911196
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 839911182}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d7b1aa2fbfb18c64a9daa6bcda39af83, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LocomotionSpeedBinder
+  hero: {fileID: 0}
+  progression: {fileID: 0}
+  rebirth: {fileID: 0}
+  scaling: {fileID: 11400000, guid: 6a2e983cdcef0d04da7e7014bc22563c, type: 2}
+  applyToSprint: 1
+  lerpRate: 3
 --- !u!1 &870210200
 GameObject:
   m_ObjectHideFlags: 0
@@ -2110,6 +2159,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 88568e58493120e468938e685dfb3425, type: 3}
       insertIndex: -1
       addedObject: {fileID: 839911195}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 88568e58493120e468938e685dfb3425, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 839911196}
     - targetCorrespondingSourceObject: {fileID: -8156834698997492034, guid: 88568e58493120e468938e685dfb3425, type: 3}
       insertIndex: -1
       addedObject: {fileID: 668413588}
@@ -2505,7 +2557,13 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: f4877c6ae91e1e743b8c98625544aed1, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1918706106}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: f4877c6ae91e1e743b8c98625544aed1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1991234739}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: f4877c6ae91e1e743b8c98625544aed1, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1991234738}
   m_SourcePrefab: {fileID: 100100000, guid: f4877c6ae91e1e743b8c98625544aed1, type: 3}
 --- !u!1 &1451023266
 GameObject:
@@ -3212,6 +3270,58 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Billboard
   lockVertical: 1
+--- !u!1 &1921660515
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1921660517}
+  - component: {fileID: 1921660516}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1921660516
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921660515}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b93f9231e1565f47a6203d8b881040d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LocomotionSpeedReadout
+  body: {fileID: 0}
+  playerTag: Player
+  includeVertical: 0
+  smoothing: 8
+  label: {fileID: 0}
+  labelFormat: 'Speed: {0:0.0} m/s'
+  showOverlay: 1
+  toggleKey: 97
+--- !u!4 &1921660517
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921660515}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -43.7527, y: -0.31621, z: 1.19527}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1942734850
 GameObject:
   m_ObjectHideFlags: 0
@@ -3450,6 +3560,47 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1991234735 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: f4877c6ae91e1e743b8c98625544aed1, type: 3}
+  m_PrefabInstance: {fileID: 1302521081}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1991234738
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1991234735}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9a81a506353d6bc41bff807784fb5c85, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Treadmill
+  speedPerSecond: 50
+  playerTag: Player
+  progression: {fileID: 734832998}
+--- !u!65 &1991234739
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1991234735}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.64074206, y: 0.9067622, z: 1.2370522}
+  m_Center: {x: 0, y: 0.4971172, z: -0.005757153}
 --- !u!1 &2021290188
 GameObject:
   m_ObjectHideFlags: 0
@@ -3576,6 +3727,8 @@ MonoBehaviour:
   speedText: {fileID: 2061550096}
   rebirthText: {fileID: 2119184083}
   progressBar: {fileID: 567791606}
+  progression: {fileID: 734832998}
+  rebirth: {fileID: 734832997}
 --- !u!1 &2061550094
 GameObject:
   m_ObjectHideFlags: 0
@@ -4030,3 +4183,4 @@ SceneRoots:
   - {fileID: 836309519}
   - {fileID: 1942734854}
   - {fileID: 2021290192}
+  - {fileID: 1921660517}

@@ -45,7 +45,7 @@ namespace WebSwingEscape.Net
             Vector3 anchor = swinging ? web.GetPosition(web.positionCount - 1) : Vector3.zero;
 
             int coins = 0;
-            if (sendCoins && GameManager.Instance != null) coins = GameManager.Instance.coins;
+            if (sendCoins && GameManager.Instance != null) coins = (int)GameManager.Instance.coins;
 
             net.SendLocalState(transform.position, transform.eulerAngles.y, swinging, anchor, coins);
         }
