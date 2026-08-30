@@ -488,6 +488,12 @@ public class SpiderSwing : MonoBehaviour
     /// <summary>True while a web is attached and this script is driving the body.</summary>
     public bool IsSwinging => swinging;
 
+    /// <summary>World-space point the web is currently anchored to. Only meaningful while <see cref="IsSwinging"/>.</summary>
+    public Vector3 AnchorPosition => anchor;
+
+    /// <summary>The hand bone the web line originates from (may be null).</summary>
+    public Transform HandTransform => handTransform;
+
     /// <summary>Public so an on-screen button or another script can trigger it too.</summary>
     public void TryStartSwing()
     {

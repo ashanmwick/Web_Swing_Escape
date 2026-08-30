@@ -3068,6 +3068,24 @@ MonoBehaviour:
   onWaterDeath:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &839911198
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 839911182}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9db74090e246204488299425ad834f3b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SwingHandIK
+  swing: {fileID: 839911194}
+  hand: 3
+  ikLayerIndex: 0
+  reachAlongRope: 1
+  matchHandRotation: 1
+  weightLerpSpeed: 12
 --- !u!1 &870210200
 GameObject:
   m_ObjectHideFlags: 0
@@ -4012,6 +4030,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 88568e58493120e468938e685dfb3425, type: 3}
       insertIndex: -1
       addedObject: {fileID: 839911197}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 88568e58493120e468938e685dfb3425, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 839911198}
     - targetCorrespondingSourceObject: {fileID: -8156834698997492034, guid: 88568e58493120e468938e685dfb3425, type: 3}
       insertIndex: -1
       addedObject: {fileID: 668413588}
