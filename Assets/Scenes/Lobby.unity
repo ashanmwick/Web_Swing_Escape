@@ -3011,8 +3011,11 @@ MonoBehaviour:
   levelOutDuration: 0.65
   fallGravityMultiplier: 1.7
   maxFallSpeed: 70
+  fallGravityGroundCushion: 0.6
   releaseBoost: 3
   maxReleaseUpSpeed: 9
+  momentumHoldDuration: 1.4
+  momentumRestoreAccel: 9
   autoRelease: 1
   autoReleaseAngle: 50
   minSwingTime: 0.2
@@ -3020,7 +3023,7 @@ MonoBehaviour:
   groundBreakDistance: 1.4
   groundMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 1
   doubleTapWindow: 0.28
   reattachCooldown: 0.12
 --- !u!114 &839911196

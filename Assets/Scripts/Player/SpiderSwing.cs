@@ -130,12 +130,23 @@ public class SpiderSwing : MonoBehaviour
     [SerializeField] float fallGravityMultiplier = 1.7f;
     [Tooltip("Terminal velocity for the assisted fall (m/s): the drop accelerates to this and no faster.")]
     [SerializeField] float maxFallSpeed = 70f;
+    [Tooltip("The fall boost stops only when ground is within this many metres straight below the body. Keep it " +
+             "SMALL – the hero controller's own 'grounded' probe reaches ~4 m and would switch the boost off long " +
+             "before you land.")]
+    [SerializeField] float fallGravityGroundCushion = 0.6f;
 
     [Header("Release")]
     [Tooltip("Extra speed added along the horizontal release direction the instant the web lets go.")]
     [SerializeField] float releaseBoost = 3f;
     [Tooltip("Upward speed is clamped to this on release, so a chain of swings can't fling the player ever higher.")]
     [SerializeField] float maxReleaseUpSpeed = 9f;
+    [Tooltip("Seconds after release to protect the horizontal launch speed from the hero controller's air drag. " +
+             "With no move key held the controller bleeds planar velocity toward zero fast, so the release turns " +
+             "into a near-vertical sink that reads as floaty. 0 disables the hold.")]
+    [SerializeField] float momentumHoldDuration = 1.4f;
+    [Tooltip("How hard (m/s²) the hold fights that air drag back toward the release speed. ~9 roughly cancels the " +
+             "controller's default airborne deceleration; lower = momentum still bleeds, just slower.")]
+    [SerializeField] float momentumRestoreAccel = 9f;
     [SerializeField] bool autoRelease = true;
     [Tooltip("Degrees from straight-down, measured at the anchor, for the automatic release on the forward up-swing. " +
              "Lower = release earlier = more forward and less upward.")]
@@ -163,6 +174,8 @@ public class SpiderSwing : MonoBehaviour
     float lastTapTime = -10f;
     float reattachReadyTime;
     float releaseLevelStart = -1f;
+    float momentumHoldUntil = -1f;
+    float releaseHorizSpeed;
 
     static readonly FieldInfo MovementField =
         typeof(HeroCharacterController).GetField("movement", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -205,6 +218,7 @@ public class SpiderSwing : MonoBehaviour
                 transform.rotation = Quaternion.LookRotation(flatFwd.normalized, Vector3.up);
         }
         releaseLevelStart = -1f;
+        momentumHoldUntil = -1f;
         SetHeroMovement(true);
     }
 
@@ -241,6 +255,7 @@ public class SpiderSwing : MonoBehaviour
     {
         if (!swinging)
         {
+            HoldReleaseMomentum(Time.fixedDeltaTime);
             ApplyFallGravity(Time.fixedDeltaTime);
             LevelOutAfterRelease(Time.fixedDeltaTime);
             return;
@@ -343,18 +358,55 @@ public class SpiderSwing : MonoBehaviour
     }
 
     /// <summary>
+    /// Keep the swing's horizontal launch speed alive for a short window after release.
+    /// The hero controller resumes on release and, with no move key held, bleeds planar
+    /// velocity toward zero at <c>deceleration * airControl</c> every step – fast enough
+    /// that the arc collapses into a near-vertical sink, which reads as "no gravity / slow
+    /// drop". Here we push the horizontal speed back toward what it was at release (along
+    /// the CURRENT heading, so steering still works), roughly cancelling that drag. Never
+    /// adds speed above the release value, and yields the moment the player is already
+    /// going faster (e.g. they held forward or dived).
+    /// </summary>
+    void HoldReleaseMomentum(float dt)
+    {
+        if (momentumHoldDuration <= 0f || Time.time >= momentumHoldUntil) return;
+        if (rb == null || rb.isKinematic || releaseHorizSpeed < 0.1f) return;
+
+        Vector3 horiz = new Vector3(Vel.x, 0f, Vel.z);
+        float speed = horiz.magnitude;
+        if (speed >= releaseHorizSpeed) return;
+
+        Vector3 dir = speed > 0.1f ? horiz / speed : new Vector3(swingForwardDir.x, 0f, swingForwardDir.z).normalized;
+        if (dir.sqrMagnitude < 0.5f) return;
+
+        float restored = Mathf.MoveTowards(speed, releaseHorizSpeed, momentumRestoreAccel * dt);
+        Vel = dir * restored + Vector3.up * Vel.y;
+    }
+
+    /// <summary>
     /// A drop still reads a little light at this world's scale even under -20 gravity, so add a
     /// small extra pull while the player is airborne, falling and not swinging. Descent only:
     /// the jump rise and the swing arc are untouched. Capped at a terminal speed so a long
-    /// plunge stays controllable. Uses the hero controller's own grounding so it engages the
-    /// instant the feet leave the floor.
+    /// plunge stays controllable.
+    ///
+    /// <para>Deliberately does NOT use <c>hero.IsGrounded</c>: that controller's grounding is a
+    /// long spherecast (~4 m for this character) meant for slope/step handling, so it flips true
+    /// half a body-height above the floor and would switch the boost off for most of every fall.
+    /// We do our own tight ray instead.</para>
     /// </summary>
     void ApplyFallGravity(float dt)
     {
         if (fallGravityMultiplier <= 1f) return;
         if (rb == null || rb.isKinematic) return;
-        if (Vel.y >= 0f) return;                       // rising or level: leave it alone
-        if (hero != null && hero.IsGrounded) return;   // on the ground: hero controller owns the body
+        if (Vel.y >= 0f) return; // rising or level: leave it alone
+
+        // About to land? Hand the body back to the hero controller for the touchdown.
+        // Use groundMask if it's been set, else every layer except Ignore Raycast –
+        // NOT groundProbeMask, which is the Water-only mask for skyline anchoring.
+        int mask = groundMask.value != 0 ? groundMask.value : Physics.DefaultRaycastLayers;
+        if (Physics.Raycast(rb.position, Vector3.down, Mathf.Max(0.01f, fallGravityGroundCushion),
+                            mask, QueryTriggerInteraction.Ignore))
+            return;
 
         Vel += Physics.gravity * ((fallGravityMultiplier - 1f) * dt);
 
@@ -569,6 +621,11 @@ public class SpiderSwing : MonoBehaviour
         SetHeroMovement(true); // hero resumes: air control now, landing later
         reattachReadyTime = Time.time + reattachCooldown;
         releaseLevelStart = Time.time; // begin easing the swing pitch back to upright
+
+        // Remember the launch speed so HoldReleaseMomentum can protect it from the
+        // hero controller's airborne drag for the next momentumHoldDuration seconds.
+        releaseHorizSpeed = new Vector3(Vel.x, 0f, Vel.z).magnitude;
+        momentumHoldUntil = Time.time + momentumHoldDuration;
     }
 
     void SetHeroMovement(bool enabled)
