@@ -1387,6 +1387,30 @@ MonoBehaviour:
   characterController: {fileID: 0}
   toggleKey: 3
   startInMouseMode: 0
+--- !u!114 &839911197
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 839911182}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c9a0d5ffa2946bd992c56ab2f1166bb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WaterDeath
+  waterLayers:
+    serializedVersion: 2
+    m_Bits: 16
+  waterTag: Untagged
+  killBelowHeight: 0
+  killHeight: -20
+  hero: {fileID: 0}
+  combat: {fileID: 0}
+  swing: {fileID: 0}
+  onWaterDeath:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1001 &850750183
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1627,6 +1651,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 88568e58493120e468938e685dfb3425, type: 3}
       insertIndex: -1
       addedObject: {fileID: 839911193}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 88568e58493120e468938e685dfb3425, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 839911197}
     - targetCorrespondingSourceObject: {fileID: -8156834698997492034, guid: 88568e58493120e468938e685dfb3425, type: 3}
       insertIndex: -1
       addedObject: {fileID: 668413588}

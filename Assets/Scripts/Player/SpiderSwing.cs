@@ -300,6 +300,15 @@ public class SpiderSwing : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Public so other gameplay scripts (e.g. a death/respawn handler) can cut the
+    /// web immediately. Safe to call when not swinging – it is a no-op.
+    /// </summary>
+    public void ForceRelease() => ReleaseWeb();
+
+    /// <summary>True while a web is attached and this script is driving the body.</summary>
+    public bool IsSwinging => swinging;
+
     /// <summary>Public so an on-screen button or another script can trigger it too.</summary>
     public void TryStartSwing()
     {
