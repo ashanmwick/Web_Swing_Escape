@@ -2723,7 +2723,7 @@ MonoBehaviour:
     deceleration: 18
     rotationSharpness: 12
     airControl: 0.4
-    jumpHeight: 1.3
+    jumpHeight: 3
     walkJumpHorizontalMultiplier: 1
     sprintJumpHorizontalMultiplier: 1.15
     walkJumpAnimSpeed: 1
@@ -2993,11 +2993,11 @@ MonoBehaviour:
   anchorMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  freshLaunchUpSpeed: 15
+  freshLaunchUpSpeed: 20
   freshLaunchForwardSpeed: 12
   freshSpeedThreshold: 4
   airLaunchForwardSpeed: 4
-  swingGravityMultiplier: 2.2
+  swingGravityMultiplier: 1.1
   autoPumpAccel: 9
   autoPumpTargetSpeed: 20
   inputPumpAccel: 20
@@ -3005,6 +3005,12 @@ MonoBehaviour:
   reelInToFraction: 0.7
   swingDamping: 0.02
   maxSwingSpeed: 34
+  orientToSwing: 1
+  ropePitchAmount: 1
+  orientLerpSpeed: 10
+  levelOutDuration: 0.65
+  fallGravityMultiplier: 1.7
+  maxFallSpeed: 70
   releaseBoost: 3
   maxReleaseUpSpeed: 9
   autoRelease: 1
@@ -3473,7 +3479,7 @@ RectTransform:
   m_Father: {fileID: 1451023267}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0.15454546, y: 1}
+  m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 10, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -7398,7 +7404,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &2021290189
 MonoBehaviour:
   m_ObjectHideFlags: 0

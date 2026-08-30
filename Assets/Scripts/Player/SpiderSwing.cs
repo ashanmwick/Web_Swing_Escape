@@ -73,8 +73,9 @@ public class SpiderSwing : MonoBehaviour
     [SerializeField] LayerMask anchorMask = ~0;
 
     [Header("Launch – fresh swing (standing / just landed)")]
-    [Tooltip("Straight-up speed injected so the player makes a big jump into the first arc.")]
-    [SerializeField] float freshLaunchUpSpeed = 15f;
+    [Tooltip("Straight-up speed injected so the player makes a big jump into the first arc. Sized for the project's " +
+             "-20 gravity – lower it if you drop gravity back toward -10.")]
+    [SerializeField] float freshLaunchUpSpeed = 20f;
     [Tooltip("Forward speed injected on a fresh swing.")]
     [SerializeField] float freshLaunchForwardSpeed = 12f;
     [Tooltip("Below this horizontal speed the next swing counts as 'fresh' and gets the big launch.")]
@@ -85,8 +86,9 @@ public class SpiderSwing : MonoBehaviour
     [SerializeField] float airLaunchForwardSpeed = 4f;
 
     [Header("Swing feel")]
-    [Tooltip("Gravity multiplier while the rope is taut. >1 makes the down-swing genuinely accelerate.")]
-    [SerializeField] float swingGravityMultiplier = 2.2f;
+    [Tooltip("Gravity multiplier while the rope is taut, on top of project gravity (currently -20). >1 makes the " +
+             "down-swing accelerate harder than a free fall; ~1.1 is plenty now that base gravity is already high.")]
+    [SerializeField] float swingGravityMultiplier = 1.1f;
     [Tooltip("Always-on tangential acceleration along the swing direction (the 'automatic pump').")]
     [SerializeField] float autoPumpAccel = 9f;
     [Tooltip("The auto-pump only adds energy while the along-arc speed is below this. Above it the swing coasts, " +
@@ -102,6 +104,32 @@ public class SpiderSwing : MonoBehaviour
     [SerializeField] float swingDamping = 0.02f;
     [Tooltip("Hard cap on swing speed (m/s).")]
     [SerializeField] float maxSwingSpeed = 34f;
+
+    [Header("Swing orientation (pitch along the rope)")]
+    [Tooltip("While swinging, pitch the body about its X axis so the spine lies along the rope – the character " +
+             "hangs and swings like a real pendulum bob – then level back out after release. The hero controller " +
+             "doesn't touch body rotation as long as its camera Body Alignment Smoothing is 0.")]
+    [SerializeField] bool orientToSwing = true;
+    [Range(0f, 1.5f)]
+    [Tooltip("How closely the body's up axis tracks the rope: 0 = stay upright, 1 = head points exactly at the " +
+             "anchor (full rope alignment), >1 over-rotates for a more dramatic lean.")]
+    [SerializeField] float ropePitchAmount = 1f;
+    [Tooltip("How quickly the body chases the target swing pose (higher = snappier). Exponential, frame-rate independent.")]
+    [SerializeField] float orientLerpSpeed = 10f;
+    [Tooltip("Seconds taken to ease the swing pitch back to the character's normal upright angle after the web " +
+             "detaches. The blend is eased (slow-in / slow-out) and always completes in this time.")]
+    [SerializeField] float levelOutDuration = 0.65f;
+
+    // Jump ascent and swing feel are handled by the project's -20 gravity (see
+    // ProjectSettings/DynamicsManager.asset). A pure fall still reads a touch light at this
+    // world scale, so we add a small DESCENT-ONLY boost here – it never touches the jump rise
+    // or the swing, only the way down.
+    [Header("Fall feel (descending, not swinging)")]
+    [Tooltip("Extra gravity applied only while airborne AND moving downward AND not swinging, on top of the -20 " +
+             "project gravity. 1 = off. ~1.7 makes a drop feel heavy without affecting jump height.")]
+    [SerializeField] float fallGravityMultiplier = 1.7f;
+    [Tooltip("Terminal velocity for the assisted fall (m/s): the drop accelerates to this and no faster.")]
+    [SerializeField] float maxFallSpeed = 70f;
 
     [Header("Release")]
     [Tooltip("Extra speed added along the horizontal release direction the instant the web lets go.")]
@@ -134,6 +162,7 @@ public class SpiderSwing : MonoBehaviour
     float swingTime;
     float lastTapTime = -10f;
     float reattachReadyTime;
+    float releaseLevelStart = -1f;
 
     static readonly FieldInfo MovementField =
         typeof(HeroCharacterController).GetField("movement", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -169,7 +198,13 @@ public class SpiderSwing : MonoBehaviour
         {
             swinging = false;
             if (web != null) web.enabled = false;
+
+            // Snap the swing tilt back to upright so the body isn't left leaning.
+            Vector3 flatFwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+            if (flatFwd.sqrMagnitude > 1e-4f)
+                transform.rotation = Quaternion.LookRotation(flatFwd.normalized, Vector3.up);
         }
+        releaseLevelStart = -1f;
         SetHeroMovement(true);
     }
 
@@ -204,7 +239,12 @@ public class SpiderSwing : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (!swinging) return;
+        if (!swinging)
+        {
+            ApplyFallGravity(Time.fixedDeltaTime);
+            LevelOutAfterRelease(Time.fixedDeltaTime);
+            return;
+        }
 
         float dt = Time.fixedDeltaTime;
         swingTime += dt;
@@ -279,6 +319,8 @@ public class SpiderSwing : MonoBehaviour
             Vel = Vel.normalized * maxSwingSpeed;
         }
 
+        if (orientToSwing) UpdateSwingOrientation(toAnchorDir, dt);
+
         // --- release conditions ---
         Vector3 fromAnchor = (rb.position - anchor).normalized;
         float angleFromDown = Vector3.Angle(Vector3.down, fromAnchor);
@@ -298,6 +340,91 @@ public class SpiderSwing : MonoBehaviour
         {
             ReleaseWeb();
         }
+    }
+
+    /// <summary>
+    /// A drop still reads a little light at this world's scale even under -20 gravity, so add a
+    /// small extra pull while the player is airborne, falling and not swinging. Descent only:
+    /// the jump rise and the swing arc are untouched. Capped at a terminal speed so a long
+    /// plunge stays controllable. Uses the hero controller's own grounding so it engages the
+    /// instant the feet leave the floor.
+    /// </summary>
+    void ApplyFallGravity(float dt)
+    {
+        if (fallGravityMultiplier <= 1f) return;
+        if (rb == null || rb.isKinematic) return;
+        if (Vel.y >= 0f) return;                       // rising or level: leave it alone
+        if (hero != null && hero.IsGrounded) return;   // on the ground: hero controller owns the body
+
+        Vel += Physics.gravity * ((fallGravityMultiplier - 1f) * dt);
+
+        if (maxFallSpeed > 0f && Vel.y < -maxFallSpeed)
+            Vel = new Vector3(Vel.x, -maxFallSpeed, Vel.z);
+    }
+
+    /// <summary>
+    /// While the rope is taut, pitch the body about its X axis so its up axis runs
+    /// up the rope to the anchor – the character hangs and swings like a pendulum
+    /// bob, tilting forward/back exactly as the rope leans. Heading stays locked to
+    /// the direction the web was fired, so this is pure pitch with no yaw wobble.
+    /// Written straight onto <see cref="Transform.rotation"/> because the Rigidbody
+    /// freezes all rotation axes (so <c>MoveRotation</c> would be ignored) and the
+    /// hero controller leaves body rotation alone while its camera Body Alignment
+    /// Smoothing is 0.
+    /// </summary>
+    void UpdateSwingOrientation(Vector3 toAnchorDir, float dt)
+    {
+        // Stable heading: the horizontal direction the swing was fired in.
+        Vector3 heading = swingForwardDir;
+        if (heading.sqrMagnitude < 1e-4f) heading = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+        if (heading.sqrMagnitude < 1e-4f) return;
+        heading.Normalize();
+
+        Quaternion upright = Quaternion.LookRotation(heading, Vector3.up);
+
+        // Fully rope-aligned pose: body up = straight along the rope. Because the
+        // heading and the rope share the same vertical plane, the delta from
+        // upright is a rotation about the body's right (X) axis – i.e. pure pitch.
+        Vector3 fwdOnRope = Vector3.ProjectOnPlane(heading, toAnchorDir);
+        Quaternion alongRope = fwdOnRope.sqrMagnitude > 1e-4f
+            ? Quaternion.LookRotation(fwdOnRope.normalized, toAnchorDir)
+            : upright;
+
+        // Scale that pitch by ropePitchAmount (1 = match the rope exactly).
+        Quaternion target = Quaternion.SlerpUnclamped(upright, alongRope, ropePitchAmount);
+
+        float t = 1f - Mathf.Exp(-orientLerpSpeed * dt); // frame-rate independent
+        transform.rotation = Quaternion.Slerp(transform.rotation, target, t);
+    }
+
+    /// <summary>
+    /// After the web lets go, ease the swing pitch back to the character's normal
+    /// upright angle over <see cref="levelOutDuration"/> seconds. Yaw is left to
+    /// the hero controller (we re-read the current heading every step), so this
+    /// only cancels the pitch. The blend is eased and guaranteed to finish inside
+    /// the window regardless of frame rate.
+    /// </summary>
+    void LevelOutAfterRelease(float dt)
+    {
+        if (!orientToSwing || releaseLevelStart < 0f || levelOutDuration <= 0f) return;
+
+        float elapsed = Time.time - releaseLevelStart;
+        if (elapsed >= levelOutDuration)
+        {
+            releaseLevelStart = -1f; // done
+            return;
+        }
+
+        Vector3 fwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+        if (fwd.sqrMagnitude < 1e-4f) return;
+        Quaternion target = Quaternion.LookRotation(fwd.normalized, Vector3.up);
+
+        // Eased progress (slow-in / slow-out) along the fixed window, converted to
+        // a per-step amount that reaches 1 exactly at the end of the window.
+        float k = Mathf.SmoothStep(0f, 1f, elapsed / levelOutDuration);
+        float kPrev = Mathf.SmoothStep(0f, 1f, Mathf.Max(0f, elapsed - dt) / levelOutDuration);
+        float step = k >= 1f ? 1f : Mathf.Clamp01((k - kPrev) / (1f - kPrev));
+        transform.rotation = Quaternion.Slerp(transform.rotation, target, step);
     }
 
     /// <summary>
@@ -441,6 +568,7 @@ public class SpiderSwing : MonoBehaviour
 
         SetHeroMovement(true); // hero resumes: air control now, landing later
         reattachReadyTime = Time.time + reattachCooldown;
+        releaseLevelStart = Time.time; // begin easing the swing pitch back to upright
     }
 
     void SetHeroMovement(bool enabled)

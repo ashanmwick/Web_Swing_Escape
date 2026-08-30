@@ -1149,7 +1149,7 @@ MonoBehaviour:
     deceleration: 18
     rotationSharpness: 12
     airControl: 0.4
-    jumpHeight: 1.3
+    jumpHeight: 3
     walkJumpHorizontalMultiplier: 1
     sprintJumpHorizontalMultiplier: 1.15
     walkJumpAnimSpeed: 1
