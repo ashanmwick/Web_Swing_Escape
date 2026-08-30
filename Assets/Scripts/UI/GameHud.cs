@@ -21,12 +21,18 @@ public class GameHud : MonoBehaviour
     [SerializeField] float speed = 3400f;
     [Tooltip("Rebirth bonus in percent, shown as 'Rebirth: +X%'.")]
     [SerializeField] float rebirthBonusPercent = 125f;
+    [Tooltip("Number of rebirths performed, shown as 'Rebirths: X'.")]
+    [SerializeField] int rebirthCount = 3;
+    [Tooltip("Spendable coins, shown as 'Coins: X'.")]
+    [SerializeField] float coins = 1200f;
 
     [Header("Scene references")]
     [SerializeField] TMP_Text levelText;      // "Level: 19" on the blue badge
     [SerializeField] TMP_Text progressText;   // "3.4k / 22.0k" over the bar
     [SerializeField] TMP_Text speedText;      // "Speed: 3.4K"
     [SerializeField] TMP_Text rebirthText;    // "Rebirth: +125%"
+    [SerializeField] TMP_Text rebirthCountText; // "Rebirths: 3"
+    [SerializeField] TMP_Text coinsText;      // "Coins: 1.2k"
     [SerializeField] Slider progressBar;      // XP fill (Min 0, Max 1, non-interactable)
 
     [Header("Live data source (optional — overrides the placeholders in Play mode)")]
@@ -110,10 +116,14 @@ public class GameHud : MonoBehaviour
             currentXp = (float)progression.CurrentLevelXp;
             xpForNextLevel = (float)progression.XpForNextLevel;
             speed = (float)progression.Speed;
+            coins = (float)progression.Coins;
         }
 
         if (rebirth != null)
+        {
             rebirthBonusPercent = (float)((rebirth.RebirthMultiplier - 1d) * 100d);
+            rebirthCount = rebirth.RebirthCount;
+        }
 
         Refresh();
     }
@@ -135,6 +145,12 @@ public class GameHud : MonoBehaviour
 
         if (rebirthText != null)
             rebirthText.text = $"Rebirth: +{rebirthBonusPercent:0.###}%";
+
+        if (rebirthCountText != null)
+            rebirthCountText.text = $"Rebirths: {rebirthCount}";
+
+        if (coinsText != null)
+            coinsText.text = $"Coins: {Abbreviate(coins)}";
     }
 
     // 3_400 -> "3.4k", 22_000 -> "22.0k", 1_500_000 -> "1.5M". Keeps the
