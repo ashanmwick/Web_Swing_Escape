@@ -1411,6 +1411,25 @@ MonoBehaviour:
   onWaterDeath:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &1839911301
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 839911182}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fe051e00f2d4b48b0e076144bb861d9, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::RespawnAnimatorReset
+  hero: {fileID: 0}
+  animator: {fileID: 0}
+  deathTrigger: Death
+  damageTrigger: Damage
+  locomotionStateName: Idle
+  animatorLayer: 0
+  crossFade: 0.1
 --- !u!1001 &850750183
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1654,6 +1673,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 88568e58493120e468938e685dfb3425, type: 3}
       insertIndex: -1
       addedObject: {fileID: 839911197}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 88568e58493120e468938e685dfb3425, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1839911301}
     - targetCorrespondingSourceObject: {fileID: -8156834698997492034, guid: 88568e58493120e468938e685dfb3425, type: 3}
       insertIndex: -1
       addedObject: {fileID: 668413588}

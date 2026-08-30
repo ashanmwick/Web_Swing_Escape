@@ -203,15 +203,7 @@ MonoBehaviour:
       m_Groups: 
       m_Action: Sprint
       m_Flags: 0
-    - m_Name: 
-      m_Id: 7337ce51-21b0-45c0-9589-0270013754c6
-      m_Path: <Mouse>/leftButton
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Attack
-      m_Flags: 0
-    - m_Name: 
+    - m_Name:
       m_Id: 07a7d741-ef43-430d-85a4-b8023ca7d6b0
       m_Path: <Gamepad>/rightTrigger
       m_Interactions: 
