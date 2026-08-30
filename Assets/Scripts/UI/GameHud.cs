@@ -31,8 +31,8 @@ public class GameHud : MonoBehaviour
     [SerializeField] TMP_Text progressText;   // "3.4k / 22.0k" over the bar
     [SerializeField] TMP_Text speedText;      // "Speed: 3.4K"
     [SerializeField] TMP_Text rebirthText;    // "Rebirth: +125%"
-    [SerializeField] TMP_Text rebirthCountText; // "Rebirths: 3"
-    [SerializeField] TMP_Text coinsText;      // "Coins: 1.2k"
+    [SerializeField] TMP_Text rebirthCountText; // "3"
+    [SerializeField] TMP_Text coinsText;      // "1.2k"
     [SerializeField] Slider progressBar;      // XP fill (Min 0, Max 1, non-interactable)
 
     [Header("Live data source (optional — overrides the placeholders in Play mode)")]
@@ -147,10 +147,10 @@ public class GameHud : MonoBehaviour
             rebirthText.text = $"Rebirth: +{rebirthBonusPercent:0.###}%";
 
         if (rebirthCountText != null)
-            rebirthCountText.text = $"Rebirths: {rebirthCount}";
+            rebirthCountText.text = Abbreviate(rebirthCount);
 
         if (coinsText != null)
-            coinsText.text = $"Coins: {Abbreviate(coins)}";
+            coinsText.text = Abbreviate(coins);
     }
 
     // 3_400 -> "3.4k", 22_000 -> "22.0k", 1_500_000 -> "1.5M". Keeps the
