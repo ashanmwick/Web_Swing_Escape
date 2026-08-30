@@ -2979,7 +2979,7 @@ MonoBehaviour:
   web: {fileID: 1601810268}
   aimCamera: {fileID: 0}
   anchorAtFixedHeight: 1
-  anchorHeightAboveGround: 22
+  anchorHeightAboveGround: 70
   groundProbeDistance: 400
   groundProbeMask:
     serializedVersion: 2
