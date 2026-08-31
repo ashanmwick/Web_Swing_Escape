@@ -1372,7 +1372,7 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 88568e58493120e468938e685dfb3425, type: 3}
   m_PrefabInstance: {fileID: 1041472538}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &839911193
+--- !u!114 &839911199
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1381,12 +1381,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 839911182}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cb58fb39cda04ebabd421aabc50e1188, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CameraLookToggle
-  characterController: {fileID: 0}
-  toggleKey: 3
-  startInMouseMode: 0
+  m_Script: {fileID: 11500000, guid: ed5095f20e0c46d091bc88a1139f3e80, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::ClickToLookCamera
+  hero: {fileID: 0}
+  playerInput: {fileID: 0}
+  lookActionName: Look
+  useRightMouseButton: 0
+  clickAgainToExit: 1
+  lockCursorWhileLooking: 1
 --- !u!114 &839911197
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1403,8 +1406,9 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 16
   waterTag: Untagged
-  killBelowHeight: 0
-  killHeight: -20
+  sweepRadius: 0.5
+  killBelowHeight: 1
+  killHeight: -25
   hero: {fileID: 0}
   combat: {fileID: 0}
   swing: {fileID: 0}
@@ -1669,7 +1673,7 @@ PrefabInstance:
       addedObject: {fileID: 839911183}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 88568e58493120e468938e685dfb3425, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 839911193}
+      addedObject: {fileID: 839911199}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 88568e58493120e468938e685dfb3425, type: 3}
       insertIndex: -1
       addedObject: {fileID: 839911197}

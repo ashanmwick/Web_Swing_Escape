@@ -90,10 +90,11 @@ schema changes, update these files (or regenerate with `npx schema-codegen`).
   web is a 2-point world-space `LineRenderer` whose `enabled` state is the public
   signal the net layer reads. Note Unity 6's `Rigidbody.linearVelocity` (not
   `.velocity`).
-- **Camera / cursor** — [Assets/Scripts/Player/CameraLookToggle.cs](Assets/Scripts/Player/CameraLookToggle.cs).
-  `Tab` toggles between camera-look (cursor locked, `HeroCharacterController`
-  enabled) and free-mouse (cursor visible, controller disabled) so on-screen UI
-  is clickable.
+- **Camera / cursor** — [Assets/Scripts/Player/ClickToLookCamera.cs](Assets/Scripts/Player/ClickToLookCamera.cs).
+  The `HeroCharacterController`'s "Look" action is kept disabled by default, so the
+  cursor stays free and on-screen UI is clickable. A left click in the world enters
+  look mode (cursor locked/hidden, camera orbits with the mouse); `Esc` or a second
+  click exits. Clicks on UI are ignored so they never grab the camera.
 - **Scene flow** — [SceneLoader.cs](Assets/Scripts/Managers/SceneLoader.cs)
   (`DontDestroyOnLoad` singleton) exposes `LoadLobby()` / `LoadFreeRoam()`.
   [FreeRoamPortal.cs](Assets/Scripts/World/FreeRoamPortal.cs) is a trigger that

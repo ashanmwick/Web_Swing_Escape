@@ -45,7 +45,7 @@ No gameplay script is modified. `LocalPlayerSync` reads swing state from the
 
 1. Duplicate your Player prefab/object, rename to `RemotePlayer`.
 2. **Remove** these components: `HeroCharacterController`, `SpiderSwing`,
-   `CameraLookToggle`, `PlayerInput`, `Rigidbody` (or set it kinematic), any
+   `ClickToLookCamera`, `PlayerInput`, `Rigidbody` (or set it kinematic), any
    `Camera` + `AudioListener` in its children, and colliders you don't want
    other players to bump into.
 3. Keep the mesh + `Animator`.

@@ -17,6 +17,15 @@ using HeroCharacter;
 /// The kill is applied as one big <see cref="DamageType.True"/>, unblockable hit
 /// through <see cref="IDamageable"/>, so the controller's normal death → respawn
 /// flow runs unmodified.
+///
+/// <para><b>Background-tab robustness (WebGL):</b> when the browser tab is hidden
+/// the whole Unity loop (physics included) freezes, and on resume Unity steps
+/// physics in large catch-up increments. A fast fall can then tunnel straight
+/// through the water collider without ever raising <c>OnTriggerEnter</c> /
+/// <c>OnCollisionEnter</c>. So in addition to those callbacks this component does
+/// a <b>swept</b> check every <c>FixedUpdate</c> (a linecast + short spherecast
+/// along the movement since the last step) and re-checks on focus/visibility
+/// regain. The world-height fallback is on by default as a final backstop.</para>
 /// </summary>
 [RequireComponent(typeof(Collider))]
 public class WaterDeath : MonoBehaviour
@@ -26,9 +35,12 @@ public class WaterDeath : MonoBehaviour
     [SerializeField] LayerMask waterLayers = 1 << 4;
     [Tooltip("Also treat any collider whose GameObject has this tag as water. Leave 'Untagged' to disable.")]
     [SerializeField] string waterTag = "Untagged";
+    [Tooltip("Radius of the swept catch-up check (roughly the character's body radius). " +
+             "Widens the tunnelling test so a thin water collider is still caught after a frozen tab resumes.")]
+    [SerializeField] float sweepRadius = 0.5f;
     [Tooltip("Fallback: also die when the player's Y drops below this world height. " +
-             "Enable only if the water has no collider.")]
-    [SerializeField] bool killBelowHeight = false;
+             "Left ON as a final backstop – set it a couple of metres BELOW the water surface for this scene.")]
+    [SerializeField] bool killBelowHeight = true;
     [SerializeField] float killHeight = -20f;
 
     [Header("Refs (auto-found on this GameObject if empty)")]
@@ -41,6 +53,8 @@ public class WaterDeath : MonoBehaviour
     public UnityEvent onWaterDeath = new UnityEvent();
 
     bool killed;
+    Vector3 lastPos;
+    bool hasLastPos;
 
     void Awake()
     {
@@ -49,21 +63,91 @@ public class WaterDeath : MonoBehaviour
         if (swing == null) swing = GetComponent<SpiderSwing>();
     }
 
+    void OnEnable()
+    {
+        lastPos = transform.position;
+        hasLastPos = true;
+    }
+
     void Update()
     {
         // Re-arm once the controller has revived us.
         if (killed && IsAlive) killed = false;
 
-        if (killBelowHeight && !killed && IsAlive && transform.position.y < killHeight)
-        {
-            Kill();
-        }
+        CheckHeight();
+    }
+
+    void FixedUpdate()
+    {
+        // Re-arm here too – on a resumed tab FixedUpdate catches up before Update.
+        if (killed && IsAlive) killed = false;
+
+        SweepForWater();
+        CheckHeight();
+
+        lastPos = transform.position;
+        hasLastPos = true;
+    }
+
+    // The tab was hidden and is now visible again: physics is about to catch up in
+    // big steps, so evaluate the swept + height checks against where we are right
+    // now before that happens.
+    void OnApplicationFocus(bool hasFocus) { if (hasFocus) ResumeCheck(); }
+    void OnApplicationPause(bool paused) { if (!paused) ResumeCheck(); }
+
+    void ResumeCheck()
+    {
+        if (!isActiveAndEnabled) return;
+        if (killed && IsAlive) killed = false;
+        SweepForWater();
+        CheckHeight();
+        lastPos = transform.position;
+        hasLastPos = true;
     }
 
     void OnTriggerEnter(Collider other) { if (IsWater(other)) Kill(); }
     void OnCollisionEnter(Collision c) { if (IsWater(c.collider)) Kill(); }
 
     bool IsAlive => hero != null ? hero.IsAlive : (combat == null || combat.IsAlive);
+
+    void CheckHeight()
+    {
+        if (killBelowHeight && !killed && IsAlive && transform.position.y < killHeight)
+            Kill();
+    }
+
+    /// <summary>
+    /// Catch a fall that moved far enough in one physics step to skip past the
+    /// water collider entirely (tab resume, frame-rate hitch). Tests the segment
+    /// travelled since the previous step.
+    /// </summary>
+    void SweepForWater()
+    {
+        if (killed || !IsAlive || waterLayers.value == 0) return;
+        if (!hasLastPos) { lastPos = transform.position; hasLastPos = true; return; }
+
+        Vector3 now = transform.position;
+        Vector3 delta = now - lastPos;
+        float dist = delta.magnitude;
+        if (dist < 0.001f) return;
+
+        Vector3 dir = delta / dist;
+
+        if (Physics.Linecast(lastPos, now, out RaycastHit hit, waterLayers, QueryTriggerInteraction.Collide)
+            && IsWater(hit.collider))
+        {
+            Kill();
+            return;
+        }
+
+        if (sweepRadius > 0f &&
+            Physics.SphereCast(lastPos, sweepRadius, dir, out RaycastHit sphereHit, dist,
+                               waterLayers, QueryTriggerInteraction.Collide)
+            && IsWater(sphereHit.collider))
+        {
+            Kill();
+        }
+    }
 
     bool IsWater(Collider other)
     {

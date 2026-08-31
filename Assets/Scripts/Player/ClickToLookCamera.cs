@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using HeroCharacter;
 
@@ -17,8 +18,11 @@ using HeroCharacter;
 /// on Esc), or click again. On exit the action is disabled and the camera simply holds its
 /// current angle; the cursor is freed so on-screen UI stays clickable.</para>
 ///
-/// <para>Coexists with <see cref="CameraLookToggle"/> (Tab free-cursor mode): while the hero
-/// controller is disabled by that toggle this component stays out of the way.</para>
+/// <para>A click that lands on a UI element (e.g. a menu button) is ignored, so pressing UI
+/// never grabs the camera or locks the cursor.</para>
+///
+/// <para>While the hero controller is disabled (e.g. by a pause menu) this component stays out
+/// of the way and leaves the cursor to whoever owns that state.</para>
 ///
 /// Non-invasive: only toggles the existing "Look" input action and the cursor state. The hero
 /// controller and the swing code are untouched.
@@ -69,8 +73,8 @@ public class ClickToLookCamera : MonoBehaviour
     {
         if (lookAction == null) ResolveLookAction();
 
-        // While the hero controller is off (e.g. CameraLookToggle's free-cursor mode) leave
-        // the cursor and the Look action to whoever owns that mode.
+        // While the hero controller is off (e.g. a pause menu) leave the cursor and the
+        // Look action to whoever owns that state.
         if (hero == null || !hero.isActiveAndEnabled)
         {
             looking = false;
@@ -83,12 +87,15 @@ public class ClickToLookCamera : MonoBehaviour
         }
 
         bool clicked = LookButtonPressedThisFrame();
+        // A click on a UI element (e.g. the Lobby button) must not grab the camera,
+        // otherwise it locks the cursor and the button never receives the click.
+        bool worldClick = clicked && !PointerOverUI();
         bool exitRequested = EscPressedThisFrame() ||
                              (looking && clickAgainToExit && clicked) ||
                              // WebGL / Editor: Esc drops pointer lock outside our control.
                              (looking && lockConfirmed && Cursor.lockState != CursorLockMode.Locked);
 
-        if (!looking && clicked)
+        if (!looking && worldClick)
         {
             looking = true;
             lockConfirmed = false;
@@ -138,6 +145,12 @@ public class ClickToLookCamera : MonoBehaviour
     {
         var keyboard = Keyboard.current;
         return keyboard != null && keyboard.escapeKey.wasPressedThisFrame;
+    }
+
+    static bool PointerOverUI()
+    {
+        var eventSystem = EventSystem.current;
+        return eventSystem != null && eventSystem.IsPointerOverGameObject();
     }
 
     void SetLookEnabled(bool enabled)
