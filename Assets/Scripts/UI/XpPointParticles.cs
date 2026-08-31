@@ -62,8 +62,6 @@ public class XpPointParticles : MonoBehaviour
     [SerializeField] float burstInterval = 1.2f;
     [Tooltip("Extra continuous emission on top of the bursts. 0 = bursts only.")]
     [SerializeField] float rateOverTime = 0f;
-    [Tooltip("Play automatically when this object is enabled.")]
-    [SerializeField] bool playOnAwake = true;
     [Tooltip("Animate the effect in the editor without entering Play mode (drives the sim from Update).")]
     [SerializeField] bool editorPreview = true;
 
@@ -85,7 +83,7 @@ public class XpPointParticles : MonoBehaviour
     {
         Cache(rebake: false);
         _lastPreviewTime = Time.realtimeSinceStartupAsDouble;
-        if (Application.isPlaying && playOnAwake) Play();
+        if (Application.isPlaying) Play();
     }
 
     void Update()
@@ -95,7 +93,7 @@ public class XpPointParticles : MonoBehaviour
         if (Application.isPlaying)
         {
             // Keep it alive even if something stopped the system.
-            if (playOnAwake && !_ps.isPlaying && !_ps.isPaused) _ps.Play(true);
+            if (!_ps.isPlaying && !_ps.isPaused) _ps.Play(true);
             return;
         }
 
@@ -181,7 +179,7 @@ public class XpPointParticles : MonoBehaviour
         main.duration = cycle;                 // burst at t=0 repeats once per loop cycle
         main.loop = true;
         main.prewarm = false;
-        main.playOnAwake = playOnAwake;
+        main.playOnAwake = true;
         main.startLifetime = life;
         main.startSpeed = new ParticleSystem.MinMaxCurve(
             v0 * (1f - riseHeightJitter), v0 * (1f + riseHeightJitter));
