@@ -232,16 +232,21 @@ public class SpiderSwing : MonoBehaviour
             if (swinging)
             {
                 // Single press -> release into the projectile phase.
-                // Double press -> release AND immediately fire the next web.
+                // Double press -> release AND immediately fire the next web (the
+                // accelerator chain). This refire is the player's explicit
+                // intent, so it bypasses reattachCooldown; ReleaseWeb still arms
+                // the cooldown for any later stray single press.
                 ReleaseWeb();
-                if (isDouble && now >= reattachReadyTime) TryStartSwing();
+                if (isDouble) TryStartSwing(ignoreCooldown: true);
             }
             else if (isDouble && now >= reattachReadyTime)
             {
                 TryStartSwing();
             }
 
-            lastTapTime = now;
+            // Consume the pair so a third rapid press doesn't instantly read as
+            // another double (which would release a swing with nothing to grab).
+            lastTapTime = isDouble ? -10f : now;
         }
 
         if (swinging && web != null)
@@ -495,9 +500,17 @@ public class SpiderSwing : MonoBehaviour
     public Transform HandTransform => handTransform;
 
     /// <summary>Public so an on-screen button or another script can trigger it too.</summary>
-    public void TryStartSwing()
+    public void TryStartSwing() => TryStartSwing(false);
+
+    /// <param name="ignoreCooldown">
+    /// Skip the <see cref="reattachCooldown"/> gate. Used by the double-tap
+    /// accelerator chain, where the release and the next fire are one deliberate
+    /// action; the cooldown only exists to stop an accidental instant re-grab
+    /// after a lone release press.
+    /// </param>
+    public void TryStartSwing(bool ignoreCooldown)
     {
-        if (swinging || Time.time < reattachReadyTime) return;
+        if (swinging || (!ignoreCooldown && Time.time < reattachReadyTime)) return;
 
         Vector3 origin = transform.position + Vector3.up * 1.5f;
         Vector3 fwd = aimCamera != null ? aimCamera.transform.forward : transform.forward;
